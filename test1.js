@@ -5,7 +5,11 @@ var renderer;
 var geometry;
 var sceneObjects = [];
 
-var mouse = [.5, .5];
+var lastMouseVec;
+
+var cameraLoc;
+
+var loading = [];
 
 function render() {
 
@@ -13,17 +17,14 @@ function render() {
 
 	requestAnimationFrame(render);
 	renderer.render(scene, camera);
-}
-
-
-function animate(){
-
-
 
 }
 
+function animate() {}
 
 function getJson(func, address) {
+
+	loading.push(true);
 
 	var httpRequest;
 	if (window.XMLHttpRequest) { // Mozilla, Safari, ...
@@ -36,67 +37,60 @@ function getJson(func, address) {
 		if (httpRequest.readyState === 4) {
 			if (httpRequest.status === 200) {
 				func(JSON.parse(httpRequest.responseText));
+				loading.pop();
 			}
 		}
 	}
 
-	httpRequest.open('GET', address, true);
+	httpRequest.open('GET', address);
 	httpRequest.send(null);
 
 }
 
 function loadScene(objects) {
 
-
-
 	for (var i = 0; i < objects.length; ++i) {
-		switch(objects[i].type){
-			case "light":
-				if (objects[i].lightType === "point") {
-					var pointLight = new THREE.PointLight(objects[i].color);
+		switch (objects[i].type) {
+		case "light":
+			if (objects[i].lightType === "point") {
+				var pointLight = new THREE.PointLight(parseInt(objects[i].color, 16));
 
-					pointLight.position.x = objects[i].position.x;
-					pointLight.position.y = objects[i].position.y;
-					pointLight.position.z = objects[i].position.z;
+				pointLight.position.x = objects[i].position.x;
+				pointLight.position.y = objects[i].position.y;
+				pointLight.position.z = objects[i].position.z;
 
-					scene.add(pointLight);
-				}
+				scene.add(pointLight);
+			}
 			break;
-			case "plane":
-				var geometry = new THREE.PlaneGeometry(objects[i].width, objects[i].height);
-				var material;
-				if(objects[i].material === "texture"){
-					material = new THREE.MeshPhongMaterial({
+		case "plane":
+			var geometry = new THREE.PlaneGeometry(objects[i].width, objects[i].height);
+			var material;
+			if (objects[i].material === "texture") {
+				material = new THREE.MeshPhongMaterial({
 						map : THREE.ImageUtils.loadTexture(objects[i].texture)
-						});
-				}
-				var plane = new THREE.Mesh(geometry, material);
-				plane.position.set(
-					objects[i].position.x,
-					objects[i].position.y,
-					objects[i].position.z
-				);
-				
-				scene.add(plane);
-			
+					});
+			}
+			var plane = new THREE.Mesh(geometry, material);
+			plane.position.set(
+				objects[i].position.x,
+				objects[i].position.y,
+				objects[i].position.z);
+
+			plane.rotation.set(
+				objects[i].rotation.x * (Math.PI / 180),
+				objects[i].rotation.y * (Math.PI / 180),
+				objects[i].rotation.z * (Math.PI / 180),
+				"XYZ");
+
+			scene.add(plane);
+
 			break;
-			default:
-		
-		
+		default:
+
 		}
-	
-	
-
 	}
-	
-	
-	//update all objects in case of 
-	for(var i = 0; i < sceneObjects.length; ++i){
-		sceneObjects[i].material.needsUpdate = true;
-	
-	}
-	
 
+	render();
 }
 
 function loadBalls(balls) {
@@ -123,36 +117,79 @@ function init() {
 
 	document.body.appendChild(renderer.domElement);
 
-	geometry = new THREE.SphereGeometry(1, 32, 32);
+	geometry = new THREE.SphereGeometry(2.25, 32, 32);
 
+	// var pointLight = new THREE.PointLight(0xffffffff);
 
-	var pointLight = new THREE.PointLight(0xffffffff);
+	// pointLight.position.x = 0;
+	// pointLight.position.y = 50;
+	// pointLight.position.z = 0;
 
-	pointLight.position.x = 10;
-	pointLight.position.y = 30;
-	pointLight.position.z = 150;
+	// scene.add(pointLight);
 
-	scene.add(pointLight);
-
-	camera.position.z = 5;
+	cameraLoc = new THREE.Vector3(0, 0, 5);
+	
+	camera.position = cameraLoc;
 	camera.lookAt(new THREE.Vector3(0, 0, 0));
 
-	getJson(loadScene, "scene.js");
+	sceneLoading = false;
+	ballLoading = false;
+	
+	lastMouseVec = new THREE.Vector3(0, 0, 1);
+	
+	window.addEventListener('mousemove', onMouseMove, false);
+	window.addEventListener('wheel', onMouseWheel, false);
+
+
 	getJson(loadBalls, "balls.js");
+	getJson(loadScene, "scene.js");
 
-	
-	window.addEventListener( 'mousemove', onMouseMove, false );
-	
-	render();
 }
-
 
 function onMouseMove(ev) {
-	mouse[0] = ev.clientX / window.innerWidth;
-	mouse[1] = ev.clientY / window.innerHeight;
+
+	var newMouseVec = new THREE.Vector3(0, 0, 0);
+	
+	newMouseVec.x = (ev.clientX * 2 - window.innerWidth) / window.innerWidth;
+	//newMouseVec.y = (window.innerHeight - 2 * ev.clientY) / window.innerHeight;
+	newMouseVec.y = (2 * ev.clientY - window.innerHeight) / window.innerHeight;
+
+	var length = Math.sqrt(newMouseVec.x * newMouseVec.x + newMouseVec.y * newMouseVec.y);
+	length = (length < 1.0) ? length : 1.0;
+	
+	newMouseVec.set(newMouseVec.x, newMouseVec.y, Math.sqrt(1.001 - length * length));
+	newMouseVec.normalize();
+	
+	var n = new THREE.Vector3(0, 0, 0);
+	n.crossVectors(lastMouseVec, newMouseVec);
+	
+	var mag = n.length()
+	
+	n.normalize();
+	
+	
+	cameraLoc.applyAxisAngle(n, -2 * mag);
+	
+	camera.position = cameraLoc;
+	camera.lookAt(new THREE.Vector3(0, 0, 0));
+	
+	lastMouseVec = newMouseVec;
+}
+
+function onMouseWheel(ev) {
+
+
+	cameraLoc.z += .05 * ev.deltaY;
+
+	camera.position = cameraLoc;
+	camera.lookAt(new THREE.Vector3(0, 0, 0));
+	
 }
 
 
+
+
+// On window load run init
 
 if (window.attachEvent) {
 	window.attachEvent('onload', init);
