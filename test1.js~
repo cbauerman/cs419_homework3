@@ -45,42 +45,9 @@ function animate() {
 		//detections
 		for(var j= 0; j < sceneObjects.length; ++j){
 			if( i != j){
-				var oball = sceneObjects[j];
+				var o_ball = sceneObjects[j];
 				var vel_diff = new THREE.Vector3();
 				vel_diff.subVectors(ball.velocity, oball.velocity);
-				var pos_diff = new THREE.Vector3();
-				pos_diff.subVectors(ball.position, oball.position);
-//TODO account for a possibly being zero
-				var a = vel_diff.dot(vel_diff);
-				var b = 2 * pos_diff.dot(vel_diff);
-				var c = pos_diff.dot(pos_diff);
-				var t1 = (-b + Math.sqrt(b * b - 4 * a * (c - 4 * ball.radius * oball.radius))) / 2 * a;
-				var t2 = (-b - Math.sqrt(b * b - 4 * a * (c - 4 * ball.radius * oball.radius))) / 2 * a;
-
-				var ct = 0;
-//TODO our solution does not account for two possible correct times
-				if(t1 < delta && t1 > 0){
-					ct = t1;
-				} else if (t2 < delta && t2 > 0){
-					ct = t2;
-				} else {
-					continue;
-				}
-				//Move balls to area of collision
-				var vel = ball.velocity.clone();
-				ball.position.add(vel.multiplyScalar(ct));
-				vel = oball.velocity.clone();
-				oball.position.add(vel.multiplyScalar(ct));
-				
-				//calculate change to linear velocity
-				//calcualte collision normal
-				var n = ball.position.clone();
-				n.sub(oball.position);
-				n.normalize();
-
-				//calculate change to angular velocity
-
-
 			}
 	}
 
@@ -176,7 +143,6 @@ function loadBalls(balls) {
 		sphere.ang_velocity.ang = Math.PI * 2 * Math.random();
 		sphere.ang_velocity.axis = randomNormal();
 		sphere.quaternion.setFromAxisAngle(randomNormal() , 2 * Math.PI * Math.random());
-		sphere.radius = 2.25/2;
 		sceneObjects.push(sphere);
 		scene.add(sphere);
 	}
